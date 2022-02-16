@@ -108,15 +108,17 @@ class SensorModel:
     def raycast(self, rob_x,rob_y,rob_theta,laser_angle,step):
         x_laser= 25.0 * np.cos(rob_theta)
         y_laser = 25.0 * np.sin(rob_theta)
-        _x = int(round((rob_x + x_laser) / 10.0))
-        _y = int(round((rob_y + y_laser) / 10.0))   
-        rob_angle = math.radians(laser_angle)     
+        _x = np.round((rob_x + x_laser) / 10.0)
+        _y = np.round((rob_y + y_laser) / 10.0)
+        rob_angle = np.radians(laser_angle)     
         final_laser_angle = rob_theta + rob_angle
         x_start = _x
         y_start = _y
         x_final = x_start
         y_final = y_start
-        while 0 < x_final < self.map.shape[1] and 0 < y_final < self.map.shape[0] and abs(self.map[y_final, x_final]) < 0.0000001:
+        #while 0 < x_final < self.map.shape[1] and 0 < y_final < self.map.shape[0] and abs(self.map[y_final, x_final]) < 0.0000001:
+
+        while 0 < x_final < self.map.shape[1] and 0 < y_final < self.map.shape[0] and abs(self.map[int(y_final), int(x_final)]) < self._min_probability:
             x_start += self._subsampling * np.cos(final_laser_angle)
             y_start += self._subsampling * np.sin(final_laser_angle)
             x_final = int(round(x_start))
@@ -137,20 +139,21 @@ class SensorModel:
         TODO : Add your code here
         """
         q=0
-        rob_x = x_t1[0]
-        rob_y = x_t1[1]
-        rob_theta = x_t1[2]
-        for i in range (-90,90, 10):
-            z_t1_star = self.raycast(rob_x,rob_y,rob_theta,i,1)
-            z_t1 = z_t1_arr[i+90]
-            p1 = self._z_hit * self.phit(z_t1, z_t1_star)
-            p2 = self._z_short * self.pshort(z_t1, z_t1_star)
-            p3 = self._z_max * self.pmax(z_t1)
-            p4 = self._z_rand * self.p_rand(z_t1)
-            prob_zt1 = p1 + p2 + p3 + p4
- 
-            if prob_zt1 > 0:
-                q = q + np.log(prob_zt1)
-        return math.exp(q)
-
-        
+        rob_x = x_t1[:,0]
+        rob_y = x_t1[:,1]
+        rob_theta = x_t1[:,2]
+        q_vector = np.zeros((x_t1.shape[0],1))
+        for m in range(x_t1.shape[0]):
+            for i in range (-90,90, 10):
+                z_t1_star = self.raycast(rob_x[m],rob_y[m],rob_theta[m],i,1)
+                z_t1 = z_t1_arr[i+90]
+                p1 = self._z_hit * self.phit(z_t1, z_t1_star)
+                p2 = self._z_short * self.pshort(z_t1, z_t1_star)
+                p3 = self._z_max * self.pmax(z_t1)
+                p4 = self._z_rand * self.p_rand(z_t1)
+                prob_zt1 = p1 + p2 + p3 + p4
+    
+                if prob_zt1 > 0:
+                    q = q + np.log(prob_zt1)
+            q_vector[m] = q
+        return np.exp(q_vector)

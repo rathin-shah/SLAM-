@@ -19,7 +19,7 @@ import imageio
 import time
 import time
 import random
-t=11203
+t=1200
 random.seed(t)
 np.random.seed(t)
 filenames = []
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     parser.add_argument('--path_to_log', default='../data/log/robotdata1.log')
     parser.add_argument('--output', default='results')
     parser.add_argument('--num_particles', default=500, type=int)
-    parser.add_argument('--visualize', action='store_true')
+    parser.add_argument('--visualize', default = 'true', action='store_true')
     args = parser.parse_args()
 
     src_path_map = args.path_to_map
@@ -154,22 +154,29 @@ if __name__ == '__main__':
 
         # Note: this formulation is intuitive but not vectorized; looping in python is SLOW.
         # Vectorized version will receive a bonus. i.e., the functions take all particles as the input and process them in a vector.
-        for m in range(0, num_particles):
-            """
-            MOTION MODEL
-            """
-            x_t0 = X_bar[m, 0:3]
-            x_t1 = motion_model.update(u_t0, u_t1, x_t0)
-
-            """
-            SENSOR MODEL
-            """
-            if (meas_type == "L"):
+        x_t1 = motion_model.update_vectorized(u_t0, u_t1, X_bar)
+        if (meas_type == "L"):
                 z_t = ranges
                 w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
-                X_bar_new[m, :] = np.hstack((x_t1, w_t))
-            else:
-                X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
+                X_bar_new = np.hstack((x_t1, w_t))
+        else:
+                X_bar_new = np.hstack((x_t1[:,0:3], X_bar[:,3:4]))
+        # for m in range(0, num_particles):
+        #     """
+        #     MOTION MODEL
+        #     """
+        #     x_t0 = X_bar[m, 0:3]
+        #     x_t1 = motion_model.update(u_t0, u_t1, x_t0)
+
+        #     """
+        #     SENSOR MODEL
+        #     """
+        #     if (meas_type == "L"):
+        #         z_t = ranges
+        #         w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
+        #         X_bar_new[m, :] = np.hstack((x_t1, w_t))
+        #     else:
+        #         X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
 
         X_bar = X_bar_new
         u_t0 = u_t1
