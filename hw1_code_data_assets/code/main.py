@@ -15,9 +15,14 @@ from resampling import Resampling
 
 from matplotlib import pyplot as plt
 from matplotlib import figure as fig
+import imageio
 import time
-
-
+import time
+import random
+t=11203
+random.seed(t)
+np.random.seed(t)
+filenames = []
 def visualize_map(occupancy_map):
     fig = plt.figure()
     mng = plt.get_current_fig_manager()
@@ -33,7 +38,8 @@ def visualize_timestep(X_bar, tstep, output_path):
     plt.savefig('{}/{:04d}.png'.format(output_path, tstep))
     plt.pause(0.00001)
     scat.remove()
-
+    filename = '{}/{:04d}.png'.format(output_path, tstep)
+    filenames.append(filename)
 
 def init_particles_random(num_particles, occupancy_map):
 
@@ -58,8 +64,14 @@ def init_particles_freespace(num_particles, occupancy_map):
     TODO : Add your code here
     This version converges faster than init_particles_random
     """
-    X_bar_init = np.zeros((num_particles, 4))
-
+    x, y = np.where(occupancy_map == 0)
+    idx = np.random.choice(np.arange(len(x)), num_particles, replace=False)
+    x0_vals = y[idx].reshape(len(idx),1) * 10.
+    y0_vals = x[idx].reshape(len(idx),1) * 10.
+    theta0_vals = np.random.uniform( -3.14, 3.14, (num_particles, 1) )
+    w0_vals = np.ones( (num_particles,1), dtype=np.float64)
+    w0_vals = w0_vals / num_particles
+    X_bar_init = np.hstack((x0_vals,y0_vals,theta0_vals,w0_vals))
     return X_bar_init
 
 
@@ -97,8 +109,8 @@ if __name__ == '__main__':
     resampler = Resampling()
 
     num_particles = args.num_particles
-    X_bar = init_particles_random(num_particles, occupancy_map)
-    # X_bar = init_particles_freespace(num_particles, occupancy_map)
+    # X_bar = init_particles_random(num_particles, occupancy_map)
+    X_bar = init_particles_freespace(num_particles, occupancy_map)
     """
     Monte Carlo Localization Algorithm : Main Loop
     """
@@ -120,8 +132,8 @@ if __name__ == '__main__':
         time_stamp = meas_vals[-1]
 
         # ignore pure odometry measurements for (faster debugging)
-        # if ((time_stamp <= 0.0) | (meas_type == "O")):
-        #     continue
+        if ((time_stamp <= 0.0) | (meas_type == "O")):
+            continue
 
         if (meas_type == "L"):
             # [x, y, theta] coordinates of laser in odometry frame
@@ -156,8 +168,8 @@ if __name__ == '__main__':
                 z_t = ranges
                 w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
                 X_bar_new[m, :] = np.hstack((x_t1, w_t))
-            # else:
-            #     X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
+            else:
+                X_bar_new[m, :] = np.hstack((x_t1, X_bar[m, 3]))
 
         X_bar = X_bar_new
         u_t0 = u_t1
@@ -169,3 +181,12 @@ if __name__ == '__main__':
 
         if args.visualize:
             visualize_timestep(X_bar, time_idx, args.output)
+    # build gif
+    with imageio.get_writer('mygif.gif', mode='I') as writer:
+        for filename in filenames:
+            image = imageio.imread(filename)
+            writer.append_data(image)
+        
+        # Remove files
+    for filename in set(filenames):
+        os.remove(filename)

@@ -45,7 +45,7 @@ class Resampling:
         i = 0
         j = 0
         for m in range(M):
-            u = r + (m-1)*(1/M)
+            u = r + (m)*(1/M)
             while u > c:
                 i=i+1
                 c=c+wt[i]

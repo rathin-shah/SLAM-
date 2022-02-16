@@ -23,25 +23,63 @@ class SensorModel:
         """
         TODO : Tune Sensor Model parameters here
         The original numbers are for reference but HAVE TO be tuned.
+        
         """
-        self._z_hit = 1
-        self._z_short = 0.1
-        self._z_max = 0.1
-        self._z_rand = 100
+        # self._z_hit = 1  # 0.1 ~ 10
+        # self._z_short = 0.18  # 0.01 ~ 1
+        # self._z_max = 0.15  # 0.01 ~ 1
+        # self._z_rand = 800  # 10 ~ 1000
 
-        self._sigma_hit = 50
-        self._lambda_short = 0.1
+        # self._sigma_hit = 100
+        # # lambda_short is an intrinsic parameter of the sensor model, for exponential noise
+        # self._lambda_short = 0.1
+
+        # # Used in p_max and p_rand, optionally in ray casting
+        # self._max_range = 8183
+
+        # # Used for thresholding obstacles of the occupancy map
+        # self._min_probability = 0.35
+        # self.map = occupancy_map
+        # # Used in sampling angles in ray casting
+        # self._subsampling = 2
+
+        #Working Tuned
+        self._z_hit = 1000
+        self._z_short = 0.01
+        self._z_max = 0.03
+        self._z_rand = 100000
+
+        self._sigma_hit = 250
+        self._lambda_short = 0.01
 
         # Used in p_max and p_rand, optionally in ray casting
-        self._max_range = 1000
+        self._max_range = 8183
 
         # Used for thresholding obstacles of the occupancy map
         self._min_probability = 0.35
         self.map = occupancy_map
         # Used in sampling angles in ray casting
         self._subsampling = 2
+       
+       #Origial
+        # self._z_hit = 1
+        # self._z_short = 0.1
+        # self._z_max = 0.1
+        # self._z_rand = 100
+
+        # self._sigma_hit = 50
+        # self._lambda_short = 0.1
+
+        # # Used in p_max and p_rand, optionally in ray casting
+        # self._max_range = 1000
+
+        # # Used for thresholding obstacles of the occupancy map
+        # self._min_probability = 0.35
+        # self.map = occupancy_map
+        # # Used in sampling angles in ray casting
+        # self._subsampling = 2
     def phit(self,z_t1,z_t1_star):
-        if 0 <= z_t1 <= self._z_max:
+        if 0 <= z_t1 <= self._max_range:
             gaussian = (math.exp(-(z_t1 - z_t1_star)**2 / (2 * self._sigma_hit**2)))/ math.sqrt(2 * math.pi * self._sigma_hit**2)
             return gaussian
         else:
@@ -56,14 +94,14 @@ class SensorModel:
             return 0.0
     
     def pmax(self,z_t1):
-        if z_t1 == self._z_max:
+        if z_t1 == self._max_range:
             return 1.0
         else:
             return 0.0 
 
     def p_rand(self, z_t1):
-        if 0 <= z_t1 < self._z_max:
-            return 1.0 / self._z_max
+        if 0 <= z_t1 < self._max_range:
+            return 1.0 / self._max_range
         else:
             return 0.0       
 
@@ -78,7 +116,7 @@ class SensorModel:
         y_start = _y
         x_final = x_start
         y_final = y_start
-        while 0 < x_final < self.map.shape[1] and 0 < y_final < self.map.shape[0] and abs(self.map[y_final, x_final]) < self._min_probability:
+        while 0 < x_final < self.map.shape[1] and 0 < y_final < self.map.shape[0] and abs(self.map[y_final, x_final]) < 0.0000001:
             x_start += self._subsampling * np.cos(final_laser_angle)
             y_start += self._subsampling * np.sin(final_laser_angle)
             x_final = int(round(x_start))
@@ -98,7 +136,7 @@ class SensorModel:
         """
         TODO : Add your code here
         """
-
+        q=0
         rob_x = x_t1[0]
         rob_y = x_t1[1]
         rob_theta = x_t1[2]
@@ -111,7 +149,8 @@ class SensorModel:
             p4 = self._z_rand * self.p_rand(z_t1)
             prob_zt1 = p1 + p2 + p3 + p4
  
-        prob_zt1 = np.delete(prob_zt1, np.where(prob_zt1 == 0.0))
-        prob_zt1 = np.sum(np.log(prob_zt1))
+            if prob_zt1 > 0:
+                q = q + np.log(prob_zt1)
+        return math.exp(q)
 
-        return np.exp(prob_zt1)
+        
